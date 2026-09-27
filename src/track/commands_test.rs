@@ -10,7 +10,7 @@ use crate::enforce::FirewallCmd;
 use crate::track::test_support::{test_global_config, test_jail_config, test_store};
 
 #[tokio::test]
-async fn manual_ban_via_cmd() {
+async fn test_manual_ban_via_cmd() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), test_jail_config());
 
@@ -27,7 +27,7 @@ async fn manual_ban_via_cmd() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),
@@ -72,7 +72,7 @@ async fn manual_ban_via_cmd() {
 }
 
 #[tokio::test]
-async fn manual_ban_already_banned_error() {
+async fn test_manual_ban_already_banned_error() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), test_jail_config());
 
@@ -98,7 +98,7 @@ async fn manual_ban_already_banned_error() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             restored,
             std::collections::HashMap::new(),
             test_store(),
@@ -128,7 +128,7 @@ async fn manual_ban_already_banned_error() {
 }
 
 #[tokio::test]
-async fn manual_unban_via_cmd() {
+async fn test_manual_unban_via_cmd() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), test_jail_config());
 
@@ -154,7 +154,7 @@ async fn manual_unban_via_cmd() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             restored,
             std::collections::HashMap::new(),
             test_store(),
@@ -189,7 +189,7 @@ async fn manual_unban_via_cmd() {
 }
 
 #[tokio::test]
-async fn query_bans_via_cmd() {
+async fn test_query_bans_via_cmd() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), test_jail_config());
 
@@ -215,7 +215,7 @@ async fn query_bans_via_cmd() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             restored,
             std::collections::HashMap::new(),
             test_store(),
@@ -242,7 +242,7 @@ async fn query_bans_via_cmd() {
 }
 
 #[tokio::test]
-async fn get_stats_via_cmd() {
+async fn test_get_stats_via_cmd() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), test_jail_config());
 
@@ -259,7 +259,7 @@ async fn get_stats_via_cmd() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),
@@ -320,7 +320,7 @@ async fn test_manual_ban_unknown_jail_returns_error() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),
@@ -372,7 +372,7 @@ async fn test_manual_unban_unknown_jail_returns_error() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),
@@ -424,7 +424,7 @@ async fn test_manual_unban_not_banned_returns_error() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),

@@ -3,6 +3,8 @@
 //! Owns the firewall backends (one per jail). Runs as a single tokio task,
 //! reading commands from a bounded mpsc channel.
 
+/// Shared subprocess runner with timeout and kill-on-drop.
+mod cmd;
 /// Executor task loop and per-command firewall handlers.
 mod executor;
 /// ipset firewall backend.
@@ -20,9 +22,11 @@ pub use executor::run;
 pub use restore::{init_and_restore, init_backends, restore_bans};
 
 #[cfg(test)]
+mod fake_bin_test_support;
+#[cfg(test)]
 mod test_support;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 
@@ -72,11 +76,14 @@ pub enum FirewallCmd {
     /// The executor builds the backend from `backend`, initializes its kernel
     /// state, then inserts it into the backend map — so bans can be applied to a
     /// set/chain that already exists. This never touches other jails' state.
+    /// The jail's `active_bans` (stored bans from an earlier life of the jail)
+    /// are then reapplied; per-ban failures are logged, never fatal.
     AddJail {
         jail_id: String,
         backend: Backend,
         ports: Vec<String>,
         protocol: String,
+        active_bans: Vec<BanRecord>,
         done: oneshot::Sender<Result<()>>,
     },
     /// Transactionally replace an existing jail's backend during reload.
@@ -104,18 +111,22 @@ pub enum FirewallCmd {
         jail_id: String,
         done: oneshot::Sender<Result<()>>,
     },
-}
-
-/// Request from the tracker to reconcile active bans against firewall state.
-///
-/// The executor verifies each ban with [`FirewallBackend::is_banned`] and
-/// re-applies any the kernel is missing (e.g. a ban that failed to apply, or
-/// was cleared out-of-band). Shipped as a bounded batch so the tracker's event
-/// loop stays responsive — the per-IP shell-outs happen on the executor task.
-#[derive(Debug)]
-pub struct ReconcileRequest {
-    /// Active bans to verify; the tracker caps the batch size per tick.
-    pub bans: Vec<BanRecord>,
+    /// Reconcile active bans against firewall state (sent by the tracker).
+    ///
+    /// The executor verifies each jail's bans with one
+    /// [`FirewallBackend::snapshot`] (falling back to per-IP
+    /// [`FirewallBackend::is_banned`]), skips backends that cannot verify
+    /// state, and re-applies any ban the kernel is missing (e.g. a ban that
+    /// failed to apply, or was cleared out-of-band). Shipped as a bounded
+    /// batch so the tracker's event loop stays responsive — the shell-outs
+    /// happen on the executor task.
+    ///
+    /// Carried on the same ordered channel as `Ban`/`Unban`, so a batch that
+    /// lists an IP is always processed before any later `Unban` of it.
+    Reconcile {
+        /// Active bans to verify; the tracker caps the batch size per tick.
+        bans: Vec<BanRecord>,
+    },
 }
 
 /// Trait for firewall backend implementations.
@@ -167,6 +178,27 @@ pub trait FirewallBackend: Send + Sync {
 
     /// Check if an IP is currently banned in the firewall.
     async fn is_banned(&self, ip: &IpAddr, jail: &str) -> Result<bool>;
+
+    /// Whether [`is_banned`](Self::is_banned) reflects real firewall state.
+    ///
+    /// Backends that cannot query the firewall (e.g. the script backend)
+    /// return `false`; reconcile must then skip them instead of treating every
+    /// ban as missing and re-applying it each tick. Defaults to `true`.
+    fn can_verify(&self) -> bool {
+        true
+    }
+
+    /// Read every IP currently banned for `jail` in one pass.
+    ///
+    /// Lets reconcile verify a whole batch with one or two shell-outs instead
+    /// of one [`is_banned`](Self::is_banned) call per IP. `Ok(None)` means the
+    /// backend does not support snapshots and callers should fall back to
+    /// per-IP checks. Errors mean the query itself failed — callers must not
+    /// read that as "nothing is banned".
+    async fn snapshot(&self, jail: &str) -> Result<Option<HashSet<IpAddr>>> {
+        let _ = jail;
+        Ok(None)
+    }
 
     /// Backend name for logging.
     fn name(&self) -> &'static str;

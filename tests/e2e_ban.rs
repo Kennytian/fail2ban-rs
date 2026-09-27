@@ -42,7 +42,7 @@ fn test_global_config() -> GlobalConfig {
 
 /// Full pipeline: watcher → tracker → verify ban command.
 #[tokio::test]
-async fn watcher_to_tracker_ban() {
+async fn test_watcher_to_tracker_ban() {
     let mut tmpfile = NamedTempFile::new().unwrap();
     let log_path = tmpfile.path().to_path_buf();
 
@@ -90,7 +90,7 @@ async fn watcher_to_tracker_ban() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             std::collections::HashMap::new(),
             test_store(),
@@ -153,7 +153,7 @@ async fn watcher_to_tracker_ban() {
 
 /// Circular buffer threshold check.
 #[test]
-fn circular_threshold() {
+fn test_circular_threshold() {
     let mut buf = CircularTimestamps::new(5);
     for i in 0..5 {
         buf.push(1000 + i * 10);
@@ -164,7 +164,7 @@ fn circular_threshold() {
 
 /// Matcher extracts correct IP from SSH log.
 #[test]
-fn matcher_ssh_log() {
+fn test_matcher_ssh_log() {
     let matcher = JailMatcher::new(&[
         r"sshd\[\d+\]: Failed password for .* from <HOST>".to_string(),
         r"sshd\[\d+\]: Invalid user .* from <HOST>".to_string(),
@@ -254,7 +254,7 @@ fn restore_jail_config() -> JailConfig {
 /// seam's ordering guarantee being weakened in a way that only breaks
 /// external implementors.
 #[tokio::test]
-async fn restart_restore_inits_backend_before_reapplying_ban() {
+async fn test_restart_restore_inits_backend_before_reapplying_ban() {
     let calls = Arc::new(Mutex::new(Vec::new()));
     let backend: Box<dyn FirewallBackend> = Box::new(RecordingBackend {
         calls: Arc::clone(&calls),
@@ -322,7 +322,7 @@ async fn wait_for_cmd(
 /// (`TrackerCmd::ManualBan`) through the same expiry sweep.
 #[tokio::test]
 #[allow(clippy::panic)]
-async fn manual_ban_with_short_ban_time_is_unbanned_after_expiry() {
+async fn test_manual_ban_with_short_ban_time_is_unbanned_after_expiry() {
     let mut jails = HashMap::new();
     jails.insert("sshd".to_string(), restore_jail_config());
 
@@ -343,7 +343,7 @@ async fn manual_ban_with_short_ban_time_is_unbanned_after_expiry() {
             failure_rx,
             cmd_rx,
             executor_tx,
-            None,
+            false,
             vec![],
             HashMap::new(),
             Arc::new(store),
